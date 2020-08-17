@@ -4,6 +4,13 @@
  
  Baudrate 115200, 8N1.
  Transistor & 12k resistor is needed to make data readable (meter spits out inverted data)
+
+ Arduino settings:
+ board      : Generic ESP8266 module
+ Baudrate   : 115200
+ Flash mode : DOUT
+ Reset mode : dtr (aka modemcu)
+ Buikdin led: 0
  
  A .php file is requested (with consumption numbers in the GET request) every minute (interval set with DSMR_UPDATE)
  created by 'ThinkPad' @ Tweakers.net, september 2014
@@ -36,9 +43,9 @@
 #include <ArduinoOTA.h>
 #include <WiFiManager.h>                              // https://github.com/tzapu/WiFiManager
 #include <ArduinoJson.h>                              // https://github.com/bblanchon/ArduinoJson
-#include <U8g2lib.h>
+#include <U8g2lib.h>                                  // oliver
 #include <SPI.h>
-#include "dsmr.h"
+#include <dsmr.h>                                     // Matthijs Kooijman
 
 // flag for saving data
 bool shouldSaveConfig = false;
@@ -81,7 +88,7 @@ P1Reader reader(&Serial, DSMR_REQPIN);
 
 void setup(void) {
   Serial.begin(115200);
-  Serial.println("\n Starting\nSmartmeter reader\n");
+  Serial.println("\n Starting\nSmartmeter reader V2.0 20200817\n");
 
   Serial.println("start: init display");
   u8g2.begin();                                       // for oled display
