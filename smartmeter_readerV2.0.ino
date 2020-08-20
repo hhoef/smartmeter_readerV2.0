@@ -51,14 +51,14 @@
 bool shouldSaveConfig = false;
 
 // udp: local settings
-unsigned int localPort = 50505;                       // local port to listen on
+unsigned int dsmr_port = 50505;                       // local port to listen on
 
 // udp: remote connection settings
-char remote_ip[16];
-unsigned int remote_port = 50505;
+char debug_ip[16] = "";
+unsigned int debug_port = 60606;
 
 // server to send results to
-char dsmr_server[16] = "";
+char dsmr_ip[16] = "";
 
 char oledTxt[25] = "";
 int status = WL_IDLE_STATUS;                          // the Wifi radio's status
@@ -74,16 +74,8 @@ WiFiUDP Udp;
 // pin remapping with ESP8266 HW I2C
 U8G2_SSD1306_128X32_UNIVISION_F_HW_I2C u8g2(U8G2_R0, U8X8_PIN_NONE, SCL, SDA);
 
-#include "save_config.h"
 #include "sm_functions.h"
 
-// Set up to read from the second serial port, and use D2 as the request
-// pin. On boards with only one (USB) serial port, you can also use
-// SoftwareSerial.
-//#ifdef ARDUINO_ARCH_ESP32
-// Create Serial1 connected to UART 1
-//HardwareSerial Serial1(1);
-//#endif
 P1Reader reader(&Serial, DSMR_REQPIN);
 
 void setup(void) {
@@ -112,9 +104,6 @@ void setup(void) {
   // dsmr: start a read right away
   reader.enable(true);
   last = millis();
-
-  // udp: start listning
-//  Udp.begin(localPort);
 }
 
 void loop(void) {
@@ -122,8 +111,35 @@ void loop(void) {
   if (digitalRead(TRIGGER_PIN) == LOW ) {
     Serial.println("Wifi trigger pin low");
 
-//    #include "read_config.h"
-    #include "wifiManager_old.h"    
+    //WiFiManager
+    WiFiManagerParameter custom_dsmr_server("server", "dsmr server", dsmr_ip, 16);
+
+    strcpy(dsmr_ip, debug_ip);
+
+    //Local intialization. Once its business is done, there is no need to keep it around
+    WiFiManager wifiManager;
+    wifiManager.setTimeout(120);                            // sets timeout until configuration portal gets turned off
+    wifiManager.addParameter(&custom_dsmr_server);          // id/name, placeholder/prompt, default, length
+
+    if (!wifiManager.startConfigPortal("DSMR-AP")) {
+      Serial.println("failed to connect and hit timeout");
+      delay(3000);
+      //reset and try again, or maybe put it to deep sleep
+      ESP.reset();
+      delay(5000);
+    }
+    strcpy(dsmr_ip, custom_dsmr_server.getValue());
+    Serial.print("DSMR IP Address: ");
+    Serial.println(dsmr_ip);
+    Serial.print("Degug IP Address: ");
+    Serial.println(debug_ip);
+    Serial.println("connected...)");
+    Serial.print("IP Address: ");
+    Serial.println(WiFi.localIP());
+    OLED_connect();
+    ArduinoOTA.handle();
+    delay(5000);
+  }  
 
   // Allow the reader to check the serial buffer regularly
   reader.loop();
@@ -136,7 +152,7 @@ void loop(void) {
     // hartbeat
     Serial.print(".");
     Serial.print("DSMR IP Address: ");
-    Serial.println(dsmr_server);
+    Serial.println(dsmr_ip);
   }
 
   if (reader.available()) {
@@ -145,14 +161,13 @@ void loop(void) {
     if (reader.parse(&data, &err)) {
       // Parse succesful, print result
       data.applyEach(Printer());
-      Udp.beginPacket(remote_ip, remote_port);
+      Udp.beginPacket(dsmr_ip, dsmr_port);
       data.applyEach(UDPprinter());
       Udp.endPacket();
     } else {
       // Parser error, print error
       Serial.println(err);
       Serial.println("parse error");
-//      UDP_print("parse error");                   // debug info, not yet real err info
     }
     // show dsmr results on OLED display
     OLED_dsmr(data);

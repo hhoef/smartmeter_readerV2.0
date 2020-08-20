@@ -144,7 +144,7 @@ void OLED_dsmr(MyData data) {
 // send udp data
 void UDP_print(char* UDPdata) {
   int bite_send;
-  Udp.beginPacket(remote_ip, remote_port);
+  Udp.beginPacket(debug_ip, debug_port);
   bite_send = Udp.write(UDPdata);
   Udp.endPacket();
 }
